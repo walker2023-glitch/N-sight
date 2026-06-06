@@ -471,3 +471,42 @@ def calc_n_application_idaho(
 
     n_app = total_demand - som_credit - soil_credit - legume_n_credit_lbs + straw_debit
     return max(n_app, 0.0)
+
+
+# ── Urea Market Economic Calculator ───────────────────────────────────────────
+# Separate from the existing calc_economic_return (which uses cost_per_ton_fertilizer
+# / price_per_bu signature for the main NUE dashboard). This version accepts the
+# urea-market-specific parameter names used by the Urea Market Trend tab.
+
+def calc_urea_economic_return(
+    n_applied_lbs: float,
+    yield_bu: float,
+    market_wheat_price: float,
+    urea_price_per_ton: float,
+) -> dict:
+    """
+    Calculates economic return for a nitrogen application scenario.
+    Urea contains exactly 46% active nitrogen by weight.
+
+    Returns:
+      {
+        "urea_needed_lbs":      float,  # lbs of urea required (N ÷ 0.46)
+        "gross_revenue":        float,  # yield_bu × market_wheat_price
+        "fertilizer_cost":      float,  # cost of urea needed
+        "net_operating_margin": float,  # gross_revenue − fertilizer_cost
+      }
+    """
+    _UREA_N_FRACTION = 0.46
+    _LBS_PER_TON     = 2000.0
+
+    urea_needed_lbs     = n_applied_lbs / _UREA_N_FRACTION
+    urea_total_cost     = (urea_needed_lbs / _LBS_PER_TON) * urea_price_per_ton
+    gross_revenue       = yield_bu * market_wheat_price
+    net_operating_margin = gross_revenue - urea_total_cost
+
+    return {
+        "urea_needed_lbs":      round(urea_needed_lbs,      2),
+        "gross_revenue":        round(gross_revenue,        2),
+        "fertilizer_cost":      round(urea_total_cost,      2),
+        "net_operating_margin": round(net_operating_margin, 2),
+    }

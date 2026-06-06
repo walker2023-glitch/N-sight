@@ -59,81 +59,61 @@ _NUE_TARGET = (FARM_NUE_OPTIMAL_LOW + FARM_NUE_OPTIMAL_HIGH) / 2.0   # 80.0
 
 def build_nitrogen_sankey(
     pipeline_df: pl.DataFrame,
-    dark_mode: bool = True,
+    bread_type: str = "Refined",
+    dark_mode: bool = False,
 ) -> go.Figure:
     """
-    Plotly Sankey diagram showing nitrogen flow from field to consumer.
+    Plotly Sankey diagram — N destination balance per 100 applied N units.
 
-    Node layout:
-      0  Total Applied N        (source — blue)
-      1  Grain Uptake           (retained — green)
-      2  Farm Losses            (loss — red)
-      3  Flour N                (retained — green)
-      4  Bran N                 (by-product — amber)
-      5  Final Loaf N           (retained — bright green)
-      6  Bake / Waste Loss      (loss — red)
-
-    Negative n_loss values (soil-mining edge case) are clamped to 0.
+    Single source node ("Applied N (100 units)") feeds destination nodes defined
+    by bread_type. pipeline_df is retained in the signature for call-site
+    compatibility; distributions are hardcoded from CIS bread-type benchmarks.
     """
-    th = _theme(dark_mode)
+    _ = pipeline_df  # signature preserved; values are bread-type constants
 
-    def _get(segment: str, col: str) -> float:
-        rows = pipeline_df.filter(pl.col("segment") == segment)
-        if rows.is_empty():
-            return 0.0
-        return max(float(rows[col][0]), 0.0)
+    REFINED_NODES = {
+        "Consumed Food N":  59.05,
+        "Consumer Waste":   13.85,
+        "Retail Waste":      9.94,
+        "Bakery Loss":       4.36,
+        "Milling Loss":      1.79,
+        "Field Difference": 17.93,
+    }
 
-    farm_n_in    = _get("Farm",            "n_in_g")
-    farm_n_out   = _get("Farm",            "n_out_g")
-    farm_loss    = _get("Farm",            "n_loss_g")
-    mill_n_out   = _get("Mill",            "n_out_g")
-    mill_loss    = _get("Mill",            "n_loss_g")
-    bakery_n_out = _get("Bakery & Retail", "n_out_g")
-    bakery_loss  = _get("Bakery & Retail", "n_loss_g")
+    WHOLE_WHEAT_NODES = {
+        "Consumed Food N":       42.53,
+        "Consumer Waste":         9.98,
+        "Retail Waste":           7.16,
+        "Bakery Loss":            3.14,
+        "Bran and Byproducts":   26.19,
+        "Field Difference":      17.93,
+    }
 
-    if farm_n_in == 0.0:
-        fig = go.Figure()
-        fig.update_layout(
-            title=dict(text="No pipeline data to display.", font=dict(color=th["font"])),
-            paper_bgcolor=th["paper"], plot_bgcolor=th["plot"],
-        )
-        return fig
+    node_data = REFINED_NODES if bread_type == "Refined" else WHOLE_WHEAT_NODES
+
+    bg_color   = "#24150F" if dark_mode else "#F5F2EB"
+    font_color = "#F5F2EB" if dark_mode else "#1D2A57"
+    accent     = "#61C0BF"
+
+    dest_labels = list(node_data.keys())
+    dest_values = list(node_data.values())
+    node_labels = ["Applied N (100 units)"] + dest_labels
+    n_dest      = len(dest_labels)
 
     nodes = dict(
-        label=[
-            "Total Applied N", "Grain Uptake", "Farm Losses",
-            "Flour N", "Bran N", "Final Loaf N", "Bake / Waste Loss",
-        ],
-        color=[
-            _BLUE_NODE, _GREEN_MID, _RED,
-            _GREEN_LIGHT, _BRAN_AMBER, _GREEN_MID, _RED_DARK,
-        ],
+        label=node_labels,
+        color=[accent] + [accent] * n_dest,
         pad=20,
         thickness=24,
-        line=dict(color=th["node_line"], width=1),
+        line=dict(color=bg_color, width=1),
     )
 
     links = dict(
-        source=[0, 0, 1, 1, 3, 3],
-        target=[1, 2, 3, 4, 5, 6],
-        value=[farm_n_out, farm_loss, mill_n_out, mill_loss, bakery_n_out, bakery_loss],
-        color=[
-            "rgba(33, 197, 93, 0.45)",
-            "rgba(255, 75, 75, 0.45)",
-            "rgba(74, 222, 128, 0.45)",
-            "rgba(217, 119, 6, 0.45)",
-            "rgba(33, 197, 93, 0.55)",
-            "rgba(153, 27, 27, 0.50)",
-        ],
-        customdata=[
-            [f"{farm_n_out:.2f} g",    "Grain Uptake"],
-            [f"{farm_loss:.2f} g",     "Farm Losses (leaching / volatilisation)"],
-            [f"{mill_n_out:.2f} g",    "Flour N"],
-            [f"{mill_loss:.2f} g",     "Bran N (by-product)"],
-            [f"{bakery_n_out:.2f} g",  "Final Loaf N"],
-            [f"{bakery_loss:.2f} g",   "Bake / Waste Loss"],
-        ],
-        hovertemplate="%{customdata[0]} — %{customdata[1]}<extra></extra>",
+        source=[0] * n_dest,
+        target=list(range(1, n_dest + 1)),
+        value=dest_values,
+        color=[f"rgba(97, 192, 191, 0.55)"] * n_dest,
+        hovertemplate="<b>%{target.label}</b><br>%{value:.2f} N units<extra></extra>",
     )
 
     fig = go.Figure(
@@ -141,25 +121,109 @@ def build_nitrogen_sankey(
             arrangement="snap",
             node=nodes,
             link=links,
-            textfont=dict(color=th["font"], size=12, family="Montserrat, monospace"),
+            textfont=dict(color=font_color, size=12, family="Montserrat, sans-serif"),
         )
     )
 
     fig.update_layout(
         title=dict(
-            text="Nitrogen Flow Through the Bread Supply Chain (g N per 1 kg Reference Loaf)",
-            font=dict(size=15, color=th["font"], family="Montserrat, monospace"),
+            text=f"N Destination Balance — {bread_type} (per 100 Applied N units)",
+            font=dict(size=15, color=font_color, family="Montserrat, sans-serif"),
             x=0.5,
             xanchor="center",
         ),
-        paper_bgcolor=th["paper"],
-        plot_bgcolor=th["plot"],
-        font=dict(color=th["font"], family="Montserrat, monospace"),
-        template=th["template"],
+        paper_bgcolor=bg_color,
+        plot_bgcolor=bg_color,
+        font=dict(color=font_color, family="Montserrat, sans-serif"),
         margin=dict(l=20, r=20, t=60, b=20),
         height=480,
     )
 
+    return fig
+
+
+def build_bread_comparison_bar_chart(dark_mode: bool) -> go.Figure:
+    """Side-by-side comparison of N destination balances for both bread types."""
+    REFINED = {
+        "Consumed Food N": 59.05, "Consumer Waste": 13.85,
+        "Retail Waste": 9.94, "Bakery Loss": 4.36,
+        "Milling Loss": 1.79, "Field Difference": 17.93,
+    }
+    WHOLE_WHEAT = {
+        "Consumed Food N": 42.53, "Consumer Waste": 9.98,
+        "Retail Waste": 7.16,    "Bakery Loss": 3.14,
+        "Bran and Byproducts": 26.19, "Field Difference": 17.93,
+    }
+
+    # Align categories — whole wheat has "Bran and Byproducts" instead of "Milling Loss"
+    all_categories = list(dict.fromkeys(list(REFINED.keys()) + list(WHOLE_WHEAT.keys())))
+    refined_vals    = [REFINED.get(cat, 0) for cat in all_categories]
+    whole_vals      = [WHOLE_WHEAT.get(cat, 0) for cat in all_categories]
+
+    bg_color   = "#24150F" if dark_mode else "#F5F2EB"
+    font_color = "#F5F2EB" if dark_mode else "#1D2A57"
+    grid_color = "rgba(255,255,255,0.08)" if dark_mode else "rgba(0,0,0,0.07)"
+
+    fig = go.Figure(data=[
+        go.Bar(name="Refined White", x=all_categories, y=refined_vals,
+               marker_color="#61C0BF"),
+        go.Bar(name="Whole Wheat",   x=all_categories, y=whole_vals,
+               marker_color="#1D2A57" if not dark_mode else "#7BA8CC"),
+    ])
+    fig.update_layout(
+        barmode="group",
+        paper_bgcolor=bg_color,
+        plot_bgcolor=bg_color,
+        font=dict(color=font_color, family="Montserrat, sans-serif", size=11),
+        title=dict(text="N Destination: Refined vs. Whole Wheat",
+                   font=dict(size=14, color=font_color), x=0.01),
+        yaxis=dict(title="N units per 100 applied",
+                   gridcolor=grid_color, linecolor=grid_color),
+        xaxis=dict(gridcolor=grid_color, linecolor=grid_color, tickangle=-30),
+        legend=dict(bgcolor="rgba(0,0,0,0)"),
+        margin=dict(t=60, b=80, l=60, r=20),
+    )
+    return fig
+
+
+def build_nue_distribution_pie(bread_type: str, dark_mode: bool) -> go.Figure:
+    """Donut chart showing resource allocation percentages for the selected bread type."""
+    REFINED = {
+        "Consumed Food N": 59.05, "Consumer Waste": 13.85,
+        "Retail Waste": 9.94,    "Bakery Loss": 4.36,
+        "Milling Loss": 1.79,    "Field Difference": 17.93,
+    }
+    WHOLE_WHEAT = {
+        "Consumed Food N": 42.53, "Consumer Waste": 9.98,
+        "Retail Waste": 7.16,    "Bakery Loss": 3.14,
+        "Bran and Byproducts": 26.19, "Field Difference": 17.93,
+    }
+
+    node_data = REFINED if bread_type == "Refined" else WHOLE_WHEAT
+    labels  = list(node_data.keys())
+    values  = list(node_data.values())
+    colors  = ["#61C0BF","#F5A623","#E8534A","#A8D5BA","#7BA8CC","#C4A882"]
+
+    bg_color   = "#24150F" if dark_mode else "#F5F2EB"
+    font_color = "#F5F2EB" if dark_mode else "#1D2A57"
+
+    fig = go.Figure(go.Pie(
+        labels=labels, values=values,
+        hole=0.45,
+        marker=dict(colors=colors[:len(labels)], line=dict(color=bg_color, width=2)),
+        textinfo="label+percent",
+        textfont=dict(size=11, color=font_color),
+        hovertemplate="<b>%{label}</b><br>%{value:.2f} N units (%{percent})<extra></extra>",
+    ))
+    fig.update_layout(
+        paper_bgcolor=bg_color,
+        font=dict(color=font_color, family="Montserrat, sans-serif"),
+        title=dict(text=f"N Allocation — {bread_type}",
+                   font=dict(size=14, color=font_color), x=0.01),
+        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10)),
+        margin=dict(t=60, b=20, l=20, r=20),
+        showlegend=True,
+    )
     return fig
 
 
@@ -257,4 +321,87 @@ def build_nue_gauge(
         height=280,
     )
 
+    return fig
+
+
+# ── §8.3 Urea Market History Line Chart ───────────────────────────────────────
+
+def build_urea_history_chart(
+    df: pl.DataFrame,
+    select_y_axis: str,
+    dark_mode: bool,
+) -> go.Figure:
+    """
+    Builds a styled Plotly line chart from the historical urea price DataFrame.
+
+    Args:
+        df: Polars DataFrame loaded from Urea_NW_Historical_Analysis_2015_2024.xlsx.
+            Must already have real column names (including embedded '\\n' chars) and
+            contain only the 10 data rows (2015–2024) — header promotion and slicing
+            is handled by the caller.
+        select_y_axis: Exact column name string (may contain '\\n'), e.g.
+            'Nominal Price\\n(USD/mt)'.
+        dark_mode: True → dark soil canvas (#24150F); False → ivory-tan (#F5F2EB).
+    """
+    DARK_BG          = "#24150F"
+    LIGHT_BG         = "#F5F2EB"
+    BRAND_TEAL       = "#61C0BF"
+    BRAND_INDIGO     = "#1D2A57"
+    GRID_COLOR_DARK  = "rgba(255,255,255,0.08)"
+    GRID_COLOR_LIGHT = "rgba(0,0,0,0.07)"
+
+    bg_color   = DARK_BG  if dark_mode else LIGHT_BG
+    font_color = "#F5F2EB" if dark_mode else BRAND_INDIGO
+    grid_color = GRID_COLOR_DARK if dark_mode else GRID_COLOR_LIGHT
+
+    # Filter to rows where Year is a 4-digit integer string
+    data_df = (
+        df
+        .filter(pl.col("Year").is_not_null())
+        .filter(pl.col("Year").cast(pl.String).str.contains(r"^\d{4}$"))
+    )
+
+    # Cast axes to numeric — Excel cells are sometimes read as strings
+    x_vals = [int(v) for v in data_df["Year"].cast(pl.String).to_list() if v is not None]
+    raw_y  = data_df.select(pl.col(select_y_axis).cast(pl.Float64, strict=False)).to_series().to_list()
+
+    axis_label = select_y_axis.replace("\n", " ")
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=x_vals,
+        y=raw_y,
+        mode="lines+markers",
+        line=dict(color=BRAND_TEAL, width=2.5),
+        marker=dict(color=BRAND_TEAL, size=7),
+        name=axis_label,
+        hovertemplate=f"<b>%{{x}}</b><br>{axis_label}: %{{y:,.2f}}<extra></extra>",
+    ))
+
+    fig.update_layout(
+        paper_bgcolor=bg_color,
+        plot_bgcolor=bg_color,
+        font=dict(color=font_color, family="Montserrat, sans-serif", size=12),
+        title=dict(
+            text=f"NW Urea Market — {axis_label}",
+            font=dict(size=15, color=font_color),
+            x=0.01,
+        ),
+        xaxis=dict(
+            title="Year",
+            gridcolor=grid_color,
+            linecolor=grid_color,
+            tickmode="linear",
+            tick0=2015,
+            dtick=1,
+        ),
+        yaxis=dict(
+            title=axis_label,
+            gridcolor=grid_color,
+            linecolor=grid_color,
+        ),
+        hovermode="x unified",
+        margin=dict(t=60, b=40, l=60, r=20),
+        showlegend=False,
+    )
     return fig

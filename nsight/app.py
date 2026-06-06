@@ -1557,17 +1557,34 @@ if _nue_calc_error is None:
 # ║  MAIN AREA — DASHBOARD TABS
 # ╚══════════════════════════════════════════════════════════════════════════════
 
-tab1, tab2, tab3 = st.tabs([t("tab_flow"), t("tab_nue"), t("tab_audit")])
+tab1, tab2, tab3, tab_urea = st.tabs([t("tab_flow"), t("tab_nue"), t("tab_audit"), "📊 Urea Market"])
 
 
 # ── Tab 1: Nitrogen Flow ──────────────────────────────────────────────────────
 with tab1:
     st.markdown(f"### {t('t1_header')}")
     st.caption(t("t1_caption"))
+    bread_type = st.radio(
+        "Bread Type",
+        options=["Refined", "Whole Wheat"],
+        horizontal=True,
+        key="bread_type_selector",
+    )
     st.plotly_chart(
-        charts.build_nitrogen_sankey(pipeline_df, dark_mode=_is_dark),
+        charts.build_nitrogen_sankey(pipeline_df, bread_type, dark_mode=_is_dark),
         use_container_width=True,
     )
+    col_bar, col_pie = st.columns(2)
+    with col_bar:
+        st.plotly_chart(
+            charts.build_bread_comparison_bar_chart(_is_dark),
+            use_container_width=True,
+        )
+    with col_pie:
+        st.plotly_chart(
+            charts.build_nue_distribution_pie(bread_type, _is_dark),
+            use_container_width=True,
+        )
 
     st.divider()
     st.markdown(f"#### {t('t1_table_hdr')}")
@@ -1745,6 +1762,112 @@ with tab3:
         )
         st.markdown(
             f"Scores **≤ {AUDIT_RISK_THRESHOLD}** trigger a red heatmap cell and the alert above."
+        )
+
+
+# ── Tab 4: Urea Market Trend ──────────────────────────────────────────────────
+with tab_urea:
+    import polars as _pl_urea   # local alias — polars not imported at app.py top level
+    import pathlib as _pathlib_urea
+
+    st.subheader("Northwest U.S. Urea Price History (2015–2024)")
+
+    # Safe initialization — only set if not already in session state
+    if "urea_price_per_ton" not in st.session_state:
+        st.session_state["urea_price_per_ton"] = 400.0
+    if "urea_n_applied_lbs" not in st.session_state:
+        st.session_state["urea_n_applied_lbs"] = 120.0
+    if "urea_yield_bu" not in st.session_state:
+        st.session_state["urea_yield_bu"] = 60.0
+    if "urea_market_wheat_price" not in st.session_state:
+        st.session_state["urea_market_wheat_price"] = 6.50
+
+    # Sidebar — urea cost slider (appended below existing sidebar widgets)
+    with st.sidebar:
+        st.markdown(
+            f"<p style='color:{_C_ACCENT};font-weight:700;font-size:0.77rem;"
+            "letter-spacing:0.07em;margin:10px 0 2px'>── UREA MARKET ──</p>",
+            unsafe_allow_html=True,
+        )
+        st.session_state["urea_price_per_ton"] = float(st.slider(
+            "Urea Price (USD/ton)", 150, 900,
+            int(st.session_state["urea_price_per_ton"]), step=10,
+            key="_urea_price_slider",
+        ))
+
+    # Chart axis selector
+    _UREA_CHART_OPTIONS = {
+        "Nominal Price (USD/mt)":   "Nominal Price\n(USD/mt)",
+        "Real Price (2024 USD/mt)": "Real Price\n(2024 USD/mt)",
+        "NW Consumption (mt)":      "Consumption\nin Weight (mt)",
+        "Per Capita Consumption":   "Consumption\nPer Capita (mt/person)",
+    }
+    _selected_label = st.selectbox(
+        "Y-Axis Metric", list(_UREA_CHART_OPTIONS.keys()), key="_urea_y_axis"
+    )
+    _selected_col = _UREA_CHART_OPTIONS[_selected_label]
+
+    # Load Excel — promote row 2 as headers, slice data from row 3 onwards
+    _excel_path = str(
+        _pathlib_urea.Path(__file__).parent.parent
+        / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
+    )
+    try:
+        _df_raw = _pl_urea.read_excel(_excel_path, has_header=False)
+        _header = _df_raw.row(2)
+        urea_df = (
+            _df_raw
+            .slice(3)
+            .rename({
+                _df_raw.columns[i]: (str(_header[i]) if _header[i] is not None else f"_col{i}")
+                for i in range(len(_df_raw.columns))
+            })
+        )
+        st.plotly_chart(
+            charts.build_urea_history_chart(urea_df, _selected_col, _is_dark),
+            use_container_width=True,
+        )
+    except Exception as _e:
+        st.error(f"Could not load urea data: {_e}")
+
+    # ── Economic Return Calculator ──────────────────────────────────────────
+    st.markdown("---")
+    st.subheader("Economic Return Calculator")
+    _eco_c1, _eco_c2 = st.columns(2)
+    with _eco_c1:
+        _u_n_lbs = st.number_input(
+            "N Applied (lbs/acre)", 0, 300,
+            int(st.session_state["urea_n_applied_lbs"]),
+            key="_urea_n_input",
+        )
+        _u_yld = st.number_input(
+            "Expected Yield (bu/acre)", 0, 200,
+            int(st.session_state["urea_yield_bu"]),
+            key="_urea_yield_input",
+        )
+    with _eco_c2:
+        _u_wheat_px = st.number_input(
+            "Wheat Price ($/bu)", 0.0, 20.0,
+            st.session_state["urea_market_wheat_price"], 0.10,
+            key="_urea_wheat_px_input",
+        )
+
+    _urea_result = math_engine.calc_urea_economic_return(
+        n_applied_lbs      = float(_u_n_lbs),
+        yield_bu           = float(_u_yld),
+        market_wheat_price = float(_u_wheat_px),
+        urea_price_per_ton = float(st.session_state["urea_price_per_ton"]),
+    )
+    _um1, _um2, _um3 = st.columns(3)
+    with _um1:
+        st.metric("Gross Revenue ($/acre)",        f"${_urea_result['gross_revenue']:,.2f}")
+    with _um2:
+        st.metric("Fertilizer Cost ($/acre)",       f"${_urea_result['fertilizer_cost']:,.2f}")
+    with _um3:
+        st.metric(
+            "Net Operating Margin ($/acre)",
+            f"${_urea_result['net_operating_margin']:,.2f}",
+            delta=f"Urea needed: {_urea_result['urea_needed_lbs']:.1f} lbs/acre",
         )
 
 
