@@ -1929,12 +1929,27 @@ with tab_urea:
     _excel_path_primary = _base_path / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
     _excel_path_secondary = _base_path.parent / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
 
-    # Use whichever path successfully finds the file
-    if _excel_path_primary.exists():
-        _excel_path = str(_excel_path_primary)
+    # Load Excel — FIXED: Root directory path mapping based on image_3ec29e.png
+    import os
+    
+    # This is 'C:\...\N-sight\nsight' (the folder app.py lives in)
+    _nsight_folder = _pathlib_urea.Path(__file__).parent.absolute()
+    
+    # This reaches one level up to 'C:\...\N-sight\' (where the file is in the root)
+    _root_folder = _nsight_folder.parent
+    
+    # Construct paths using the exact file name visible in your repository root
+    _path_option_root = _root_folder / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
+    _path_option_local = _nsight_folder / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
+
+    if _path_option_root.exists():
+        _excel_path = str(_path_option_root)
+    elif _path_option_local.exists():
+        _excel_path = str(_path_option_local)
     else:
-        _excel_path = str(_excel_path_secondary)
-        
+        # Straight relative path fallback string for Streamlit Cloud baseline mounting
+        _excel_path = "../Urea_NW_Historical_Analysis_2015_2024.xlsx"
+
     try:
         _df_raw = _pl_urea.read_excel(_excel_path, has_header=False)
         _header = _df_raw.row(2)
