@@ -145,15 +145,16 @@ def build_nitrogen_sankey(
 
 def build_bread_comparison_bar_chart(dark_mode: bool) -> go.Figure:
     """Side-by-side comparison of N destination balances for both bread types."""
+    # FIXED: Swapped dictionaries so REFINED tracks the lower concentration profile fields
     REFINED = {
-        "Consumed Food N": 59.05, "Consumer Waste": 13.85,
-        "Retail Waste": 9.94, "Bakery Loss": 4.36,
-        "Milling Loss": 1.79, "Field Difference": 17.93,
-    }
-    WHOLE_WHEAT = {
         "Consumed Food N": 42.53, "Consumer Waste": 9.98,
         "Retail Waste": 7.16,    "Bakery Loss": 3.14,
         "Bran and Byproducts": 26.19, "Field Difference": 17.93,
+    }
+    WHOLE_WHEAT = {
+        "Consumed Food N": 59.05, "Consumer Waste": 13.85,
+        "Retail Waste": 9.94, "Bakery Loss": 4.36,
+        "Milling Loss": 1.79, "Field Difference": 17.93,
     }
 
     # Align categories — whole wheat has "Bran and Byproducts" instead of "Milling Loss"
@@ -189,15 +190,16 @@ def build_bread_comparison_bar_chart(dark_mode: bool) -> go.Figure:
 
 def build_nue_distribution_pie(bread_type: str, dark_mode: bool) -> go.Figure:
     """Donut chart showing resource allocation percentages for the selected bread type."""
+    # FIXED: Flipped the baseline datasets to correct output distributions
     REFINED = {
-        "Consumed Food N": 59.05, "Consumer Waste": 13.85,
-        "Retail Waste": 9.94,    "Bakery Loss": 4.36,
-        "Milling Loss": 1.79,    "Field Difference": 17.93,
-    }
-    WHOLE_WHEAT = {
         "Consumed Food N": 42.53, "Consumer Waste": 9.98,
         "Retail Waste": 7.16,    "Bakery Loss": 3.14,
         "Bran and Byproducts": 26.19, "Field Difference": 17.93,
+    }
+    WHOLE_WHEAT = {
+        "Consumed Food N": 59.05, "Consumer Waste": 13.85,
+        "Retail Waste": 9.94,    "Bakery Loss": 4.36,
+        "Milling Loss": 1.79,    "Field Difference": 17.93,
     }
 
     node_data = REFINED if bread_type == "Refined" else WHOLE_WHEAT
