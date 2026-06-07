@@ -1565,9 +1565,9 @@ _fert_applied       = float(st.session_state["fertilizer_applied"])
 _wheat_price        = float(st.session_state["wheat_price"])
 _fert_price_ton     = float(st.session_state["fertilizer_price_ton"])
 
-# Segment 1: Farm — University of Idaho CIS 453 N recommendation engine
-# Guarded with AttributeError fallback: if math_engine bytecode is stale and
-# calc_n_application_idaho is missing, compute inline using the same formula.
+#  Move this to the very top of the block so it is ready for downstream use!
+grain_n_uptake = math_engine.calc_grain_n_uptake(_yield)
+
 try:
     n_application = math_engine.calc_n_application_idaho(
         yield_potential_bu   = _yield,
@@ -1582,7 +1582,6 @@ except AttributeError:
     # Inline CIS 453 fallback — Aligned perfectly with fixed math signs
     _zf = _get_n_demand_factor(_annual_precip_in)
     _sc = _get_som_n_credit(_som_pct, _tillage)
-    # Subtract credits cleanly, add the straw immobilization debit
     n_application = max((_yield * _zf) - _sc - (_soil_ppm * 3.5) - _legume_lbs + (_straw_tons * 15), 0.0)
 
 _nue_calc_error: str | None = None
@@ -1590,11 +1589,8 @@ farm_nue:        float      = 0.0
 farm_validation: dict       = {"status": "warning", "message": "", "color": "#F59E0B"}
 
 try:
+    # Now grain_n_uptake is initialized and safe to call!
     farm_nue        = math_engine.calc_farm_nue(grain_n_uptake, n_application)
-    farm_validation = math_engine.validate_farm_nue(farm_nue)
-except ZeroDivisionError:
-    _nue_calc_error = t("err_zero_n")
-
 # Segment 2: Mill
 mill_result = math_engine.calc_mill_output(grain_n_uptake, _extr)
 
@@ -1806,7 +1802,7 @@ with tab2:
             value=f"{loaf_protein}.0 g ({loaf_protein/10:.1f}%)",
             delta=t("delta_n_factor"),
         )
-        
+
     # Economic sub-grid
     st.divider()
     st.markdown(f"### {t('t2_eco_header')}")
