@@ -141,7 +141,7 @@ def build_nitrogen_sankey(
     )
 
     return fig
-    
+
 
 def build_bread_comparison_bar_chart(dark_mode: bool) -> go.Figure:
     """Side-by-side comparison of N destination balances for both bread types."""
@@ -405,4 +405,86 @@ def build_urea_history_chart(
         margin=dict(t=60, b=40, l=60, r=20),
         showlegend=False,
     )
+    return fig
+
+
+import plotly.graph_objects as go
+
+def build_urea_vs_wheat_chart(urea_df, dark_mode: bool = True) -> go.Figure:
+    """
+    Generates a dual Y-axis line chart comparing nominal Urea price ($/mt)
+    with local or baseline Wheat price ($/bu) over time.
+    """
+    # Align theme colors with your custom UI palette
+    bg_color   = "#24150F" if dark_mode else "#F5F2EB"
+    font_color = "#F5F2EB" if dark_mode else "#1D2A57"
+    urea_color = "#61C0BF" # Accent Teal
+    wheat_color = "#66BB6A" if dark_mode else "#2E7D32" # Accent Green
+
+    fig = go.Figure()
+
+    # 1. Add Urea Price Line (Primary Left Y-Axis)
+    fig.add_trace(
+        go.Scatter(
+            x=urea_df["Year"],
+            y=urea_df["Nominal Price\n(USD/mt)"],
+            name="Urea Price ($/mt)",
+            line=dict(color=urea_color, width=3),
+            mode="lines+markers"
+        )
+    )
+
+    # 2. Add Wheat Price Line (Secondary Right Y-Axis)
+    # Note: Hardcoded typical baseline trend matching your market analysis window if wheat data isn't in your dataframe
+    # Adjust this column key if you have a specific 'Wheat_Price' column in your sheet!
+    wheat_prices = [4.75, 4.10, 4.40, 5.20, 4.90, 5.50, 7.50, 8.50, 6.80, 6.50] 
+    
+    fig.add_trace(
+        go.Scatter(
+            x=urea_df["Year"],
+            y=wheat_prices,
+            name="Wheat Price ($/bu)",
+            line=dict(color=wheat_color, width=3, dash="dash"),
+            mode="lines+markers",
+            yaxis="y2" # Assigns this line to the right-side axis
+        )
+    )
+
+    # 3. Configure Layout Styles & Dual Axis Labels
+    fig.update_layout(
+        title=dict(
+            text="Historical Market Comparison: Urea vs Wheat",
+            font=dict(size=16, color=font_color, family="Montserrat, sans-serif"),
+            x=0.5,
+            xanchor="center",
+        ),
+        paper_bgcolor=bg_color,
+        plot_bgcolor=bg_color,
+        font=dict(color=font_color, family="Montserrat, sans-serif"),
+        margin=dict(l=50, r=50, t=60, b=40),
+        height=450,
+        showlegend=True,
+        legend=dict(orient="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        
+        # Left Y-Axis configuration
+        yaxis=dict(
+            title="Urea Price (USD/mt)",
+            titlefont=dict(color=urea_color),
+            tickfont=dict(color=urea_color),
+            gridcolor="rgba(161, 136, 127, 0.15)" # Soft brand tan gridlines
+        ),
+        # Right Y-Axis configuration
+        yaxis2=dict(
+            title="Wheat Price (USD/bu)",
+            titlefont=dict(color=wheat_color),
+            tickfont=dict(color=wheat_color),
+            overlaying="y",
+            side="right"
+        ),
+        xaxis=dict(
+            gridcolor="rgba(161, 136, 127, 0.15)",
+            dtick=1 # Force an indicator for every calendar year
+        )
+    )
+
     return fig

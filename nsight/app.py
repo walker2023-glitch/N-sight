@@ -1882,37 +1882,7 @@ with tab3:
         )
 
 
-# ── Tab 4: Urea Market Trend ──────────────────────────────────────────────────
-with tab_urea:
-    import polars as _pl_urea   # local alias — polars not imported at app.py top level
-    import pathlib as _pathlib_urea
-
-    st.subheader("Northwest U.S. Urea Price History (2015–2024)")
-
-    # Safe initialization — only set if not already in session state
-    if "urea_price_per_ton" not in st.session_state:
-        st.session_state["urea_price_per_ton"] = 400.0
-    if "urea_n_applied_lbs" not in st.session_state:
-        st.session_state["urea_n_applied_lbs"] = 120.0
-    if "urea_yield_bu" not in st.session_state:
-        st.session_state["urea_yield_bu"] = 60.0
-    if "urea_market_wheat_price" not in st.session_state:
-        st.session_state["urea_market_wheat_price"] = 6.50
-
-    # Sidebar — urea cost slider (appended below existing sidebar widgets)
-    with st.sidebar:
-        st.markdown(
-            f"<p style='color:{_C_ACCENT};font-weight:700;font-size:0.77rem;"
-            "letter-spacing:0.07em;margin:10px 0 2px'>── UREA MARKET ──</p>",
-            unsafe_allow_html=True,
-        )
-        st.session_state["urea_price_per_ton"] = float(st.slider(
-            "Urea Price (USD/ton)", 150, 900,
-            int(st.session_state["urea_price_per_ton"]), step=10,
-            key="_urea_price_slider",
-        ))
-
-    # Chart axis selector
+# Chart axis selector
     _UREA_CHART_OPTIONS = {
         "Nominal Price (USD/mt)":   "Nominal Price\n(USD/mt)",
         "Real Price (2024 USD/mt)": "Real Price\n(2024 USD/mt)",
@@ -1924,33 +1894,8 @@ with tab_urea:
     )
     _selected_col = _UREA_CHART_OPTIONS[_selected_label]
 
-    # Load Excel — FIXED: Check both root and local directory dynamically
-    _base_path = _pathlib_urea.Path(__file__).parent
-    _excel_path_primary = _base_path / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
-    _excel_path_secondary = _base_path.parent / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
-
-    # Load Excel — FIXED: Root directory path mapping based on image_3ec29e.png
-    import os
-    
-    # This is 'C:\...\N-sight\nsight' (the folder app.py lives in)
-    _nsight_folder = _pathlib_urea.Path(__file__).parent.absolute()
-    
-    # This reaches one level up to 'C:\...\N-sight\' (where the file is in the root)
-    _root_folder = _nsight_folder.parent
-    
-    # Construct paths using the exact file name visible in your repository root
-    _path_option_root = _root_folder / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
-    _path_option_local = _nsight_folder / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
-
-    if _path_option_root.exists():
-        _excel_path = str(_path_option_root)
-    elif _path_option_local.exists():
-        _excel_path = str(_path_option_local)
-    else:
-        # Straight relative path fallback string for Streamlit Cloud baseline mounting
-        _excel_path = "../Urea_NW_Historical_Analysis_2015_2024.xlsx"
-
     try:
+        # 1. Read Workbook once
         _df_raw = _pl_urea.read_excel(_excel_path, has_header=False)
         _header = _df_raw.row(2)
         urea_df = (
@@ -1961,13 +1906,25 @@ with tab_urea:
                 for i in range(len(_df_raw.columns))
             })
         )
+        
+        # 2. Render Single Selected Metric Historical Chart
         st.plotly_chart(
             charts.build_urea_history_chart(urea_df, _selected_col, _is_dark),
             use_container_width=True,
         )
+        
+        # 3. Render the Dual-Axis Wheat Comparison Chart
+        st.markdown("#### 🔄 Cross-Market Price Correlation")
+        st.caption("Analyzing input costs relative to output market returns. Dotted green line uses right-hand vertical axis scale.")
+        st.plotly_chart(
+            charts.build_urea_vs_wheat_chart(urea_df, dark_mode=_is_dark),
+            use_container_width=True,
+        )
+        
     except Exception as _e:
         st.error(f"Could not load urea data: {_e}")
 
+    # ── Economic Return Calculator ──────────────────────────────────────────
     # ── Economic Return Calculator ──────────────────────────────────────────
     st.markdown("---")
     st.subheader("Economic Return Calculator")
