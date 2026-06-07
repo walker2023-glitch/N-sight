@@ -71,22 +71,23 @@ def build_nitrogen_sankey(
     """
     _ = pipeline_df  # signature preserved; values are bread-type constants
 
+    # FIXED: Flipped the values so Refined has Bran and Whole Wheat has Milling Loss
     REFINED_NODES = {
-        "Consumed Food N":  59.05,
-        "Consumer Waste":   13.85,
-        "Retail Waste":      9.94,
-        "Bakery Loss":       4.36,
-        "Milling Loss":      1.79,
-        "Field Difference": 17.93,
-    }
-
-    WHOLE_WHEAT_NODES = {
         "Consumed Food N":       42.53,
         "Consumer Waste":         9.98,
         "Retail Waste":           7.16,
         "Bakery Loss":            3.14,
         "Bran and Byproducts":   26.19,
         "Field Difference":      17.93,
+    }
+
+    WHOLE_WHEAT_NODES = {
+        "Consumed Food N":      59.05,
+        "Consumer Waste":       13.85,
+        "Retail Waste":          9.94,
+        "Bakery Loss":           4.36,
+        "Milling Loss":          1.79,
+        "Field Difference":     17.93,
     }
 
     node_data = REFINED_NODES if bread_type == "Refined" else WHOLE_WHEAT_NODES
@@ -140,7 +141,7 @@ def build_nitrogen_sankey(
     )
 
     return fig
-
+    
 
 def build_bread_comparison_bar_chart(dark_mode: bool) -> go.Figure:
     """Side-by-side comparison of N destination balances for both bread types."""

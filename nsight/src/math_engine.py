@@ -624,12 +624,27 @@ def run_collaborative_calculation_engine(
     else:
         residue_credit = determinePreviousCereal(residue_level) if residue_toggle else 0
 
-    # Step 6 — Final N requirement
-    # mini_credit and legume residue_credit are negative numbers (they reduce N need)
-    # SN_credit is positive and subtracted separately
-    nitrogen_required = BLR + float(mini_credit) + float(residue_credit) - SN_credit
-    nitrogen_required = max(0.0, nitrogen_required)
+   # ==============================================================================
+    # FIXED STEP 6: Align math signs perfectly with credit/debit behaviors
+    # ==============================================================================
+    
+    # Extract absolute positive values for clean subtraction of credits
+    abs_om_credit = abs(float(mini_credit))
+    abs_soil_credit = float(SN_credit)
+    
+    if legume_toggle:
+        # Legumes provide a credit (reduces commercial N requirement)
+        abs_legume_credit = abs(float(residue_credit))
+        straw_debit = 0.0
+    else:
+        # Cereal residue provides a debit (increases commercial N requirement)
+        abs_legume_credit = 0.0
+        straw_debit = float(residue_credit)
 
+    # Net Nitrogen Required = Base Demand - Soil Credits + Straw Immobilization Debits
+    nitrogen_required = BLR - abs_om_credit - abs_soil_credit - abs_legume_credit + straw_debit
+    nitrogen_required = max(0.0, nitrogen_required)
+    
     # ══════════════════════════════════════════════════════════════
     # ►► END OF CALCULATION ENGINE                                ◄◄
     # ══════════════════════════════════════════════════════════════

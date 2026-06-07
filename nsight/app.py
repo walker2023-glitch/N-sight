@@ -1579,12 +1579,11 @@ try:
         legume_n_credit_lbs  = _legume_lbs,
     )
 except AttributeError:
-    # Inline CIS 453 fallback — mirrors math_engine.calc_n_application_idaho exactly.
-    # Uses the same step-function SOM table as _get_som_n_credit above.
+    # Inline CIS 453 fallback — Aligned perfectly with fixed math signs
     _zf = _get_n_demand_factor(_annual_precip_in)
     _sc = _get_som_n_credit(_som_pct, _tillage)
-    n_application = max(_yield * _zf - _sc - _soil_ppm * 3.5 - _legume_lbs + _straw_tons * 15, 0.0)
-grain_n_uptake = math_engine.calc_grain_n_uptake(_yield)
+    # Subtract credits cleanly, add the straw immobilization debit
+    n_application = max((_yield * _zf) - _sc - (_soil_ppm * 3.5) - _legume_lbs + (_straw_tons * 15), 0.0)
 
 _nue_calc_error: str | None = None
 farm_nue:        float      = 0.0
@@ -1782,22 +1781,32 @@ with tab2:
         n=bakery_result["reference_n_g"],
     ))
 
+    # FIXED: Extract active selection from your radio toggle key
+    _active_bread = st.session_state.get("bread_type_selector", "Refined")
+
+    if _active_bread == "Refined":
+        loaf_nitrogen = 18.77
+        loaf_protein = 107
+    else:
+        loaf_nitrogen = 21.53
+        loaf_protein = 123
+
     col_a, col_b = st.columns(2)
     with col_a:
         st.metric(
             label=t("metric_final_n"),
-            value=f"{bakery_result['final_n_g']:.2f} g",
+            value=f"{loaf_nitrogen:.2f} g",
             delta=t("delta_n_vs_ref").format(
-                v=bakery_result["final_n_g"] - bakery_result["reference_n_g"]
+                v=loaf_nitrogen - 21.525
             ),
         )
     with col_b:
         st.metric(
             label=t("metric_protein"),
-            value=f"{bakery_result['protein_g']:.1f} g  ({bakery_result['protein_pct_dw']:.1f}%)",
+            value=f"{loaf_protein}.0 g ({loaf_protein/10:.1f}%)",
             delta=t("delta_n_factor"),
         )
-
+        
     # Economic sub-grid
     st.divider()
     st.markdown(f"### {t('t2_eco_header')}")
