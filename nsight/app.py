@@ -1924,11 +1924,17 @@ with tab_urea:
     )
     _selected_col = _UREA_CHART_OPTIONS[_selected_label]
 
-    # Load Excel — promote row 2 as headers, slice data from row 3 onwards
-    _excel_path = str(
-        _pathlib_urea.Path(__file__).parent.parent
-        / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
-    )
+    # Load Excel — FIXED: Check both root and local directory dynamically
+    _base_path = _pathlib_urea.Path(__file__).parent
+    _excel_path_primary = _base_path / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
+    _excel_path_secondary = _base_path.parent / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
+
+    # Use whichever path successfully finds the file
+    if _excel_path_primary.exists():
+        _excel_path = str(_excel_path_primary)
+    else:
+        _excel_path = str(_excel_path_secondary)
+        
     try:
         _df_raw = _pl_urea.read_excel(_excel_path, has_header=False)
         _header = _df_raw.row(2)
