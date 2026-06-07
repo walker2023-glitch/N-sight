@@ -469,15 +469,21 @@ def build_urea_vs_wheat_chart(urea_df, dark_mode: bool = True) -> go.Figure:
         
         # Left Y-Axis configuration
         yaxis=dict(
-            title="Urea Price (USD/mt)",
-            titlefont=dict(color=urea_color),
+            # FIXED: Nested the title styling safely inside a title configuration dictionary
+            title=dict(
+                text="Urea Price (USD/mt)",
+                font=dict(color=urea_color)
+            ),
             tickfont=dict(color=urea_color),
             gridcolor="rgba(161, 136, 127, 0.15)" # Soft brand tan gridlines
         ),
         # Right Y-Axis configuration
         yaxis2=dict(
-            title="Wheat Price (USD/bu)",
-            titlefont=dict(color=wheat_color),
+            # FIXED: Nested the secondary title styling inside a title configuration dictionary
+            title=dict(
+                text="Wheat Price (USD/bu)",
+                font=dict(color=wheat_color)
+            ),
             tickfont=dict(color=wheat_color),
             overlaying="y",
             side="right"
