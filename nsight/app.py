@@ -1837,6 +1837,7 @@ with tab2:
     with eco2:
         st.metric(
             label=t("metric_fert_cost"),
+            # FIXED: Direct variable reference to the pre-calculated math_engine output dictionary
             value=f"${economic_result['fertilizer_cost']:,.2f}",
             delta=t("delta_fert").format(
                 n=_fert_applied, c=economic_result["cost_per_lb_n"]
