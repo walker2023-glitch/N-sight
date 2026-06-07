@@ -510,3 +510,162 @@ def calc_urea_economic_return(
         "fertilizer_cost":      round(urea_total_cost,      2),
         "net_operating_margin": round(net_operating_margin, 2),
     }
+
+
+# ── NitrogenCal2 helper functions (do not rename or edit these) ──────────
+
+def CalPrecipitation(rainfall_inch: float) -> float:
+    """Converts annual rainfall (inches) to N uptake factor."""
+    try:
+        inches = float(rainfall_inch)
+        if inches < 18:
+            return 2.4
+        elif 18 <= inches < 21:
+            return 2.5
+        elif 21 <= inches < 24:
+            return 2.7
+        elif 24 <= inches < 28:
+            return 2.9
+        else:
+            return 3.1
+    except (ValueError, TypeError):
+        return 2.4
+
+
+def calMineralisable(organic_matter: float) -> float:
+    """
+    Returns N credit (lbs/acre) from soil organic matter %.
+    Negative value = N already available, reduces fertilizer need.
+    Note: every 0.1% OM above 1.0% adds -2 lbs N credit.
+    """
+    om = round(float(organic_matter), 1)
+    if om <= 1.0:
+        return -20
+    elif om >= 3.0:
+        return -60
+    else:
+        return -20 - int((om - 1.0) * 20) * 2
+
+
+def determinePreviousCereal(cereal_residue: float) -> float:
+    """
+    Returns positive N adjustment for cereal crop residue (tons/acre).
+    Positive = need MORE N because straw ties up nitrogen.
+    """
+    mapping = {0: 0, 0.5: 7.5, 1: 15, 2: 30, 2.5: 37.5, 3: 45, 3.5: 50}
+    return mapping.get(cereal_residue, 0)
+
+
+def determinePreviousLegumes(legume_residue: float) -> float:
+    """
+    Returns negative N adjustment for legume crop residue (tons/acre).
+    Negative = need LESS N because legumes fix nitrogen.
+    """
+    mapping = {0: 0, 1: -8, 1.5: -23, 2: -30, 3: -45, 3.5: -60}
+    return mapping.get(legume_residue, 0)
+
+
+def run_collaborative_calculation_engine(
+    yield_potential:    float,
+    precip_index:       float,
+    som_pct:            float,
+    soil_test_ppm:      float,
+    tillage_selection:  str,
+    legume_toggle:      bool,
+    residue_toggle:     bool,
+    user_urea_price:    float,
+    ppm_0_12:           float = 5.0,
+    ppm_12_24:          float = 3.0,
+    ppm_24_36:          float = 2.0,
+    residue_level:      float = 2.0,
+) -> dict:
+    """
+    Agronomic N recommendation engine based on NitrogenCal2 methodology.
+
+    Parameters (original — unchanged)
+    ──────────────────────────────────
+    yield_potential   : Expected crop yield in bu/acre
+    precip_index      : Annual rainfall in inches (12–35 typical NW range)
+    som_pct           : Soil organic matter percentage (0.5–5.0)
+    soil_test_ppm     : Legacy field — not used when depth readings are passed
+    tillage_selection : Tillage type string — reserved for future use
+    legume_toggle     : True = previous crop was a legume
+    residue_toggle    : True = cereal residue is present (only used when legume_toggle is False)
+    user_urea_price   : Urea price in USD/ton
+
+    New optional parameters (existing app.py calls still work via defaults)
+    ────────────────────────────────────────────────────────────────────────
+    ppm_0_12          : Soil nitrate PPM, 0–12 inch depth  (default 5.0)
+    ppm_12_24         : Soil nitrate PPM, 12–24 inch depth (default 3.0)
+    ppm_24_36         : Soil nitrate PPM, 24–36 inch depth (default 2.0)
+    residue_level     : Residue amount in tons/acre for lookup tables (default 2.0)
+    """
+
+    # ══════════════════════════════════════════════════════════════
+    # ►► NitrogenCal2 CALCULATION ENGINE                          ◄◄
+    # ══════════════════════════════════════════════════════════════
+
+    # Step 1 — Precipitation factor from annual rainfall
+    precipitation_factor = CalPrecipitation(precip_index)
+
+    # Step 2 — Base Nitrogen Requirement (BLR)
+    BLR = yield_potential * precipitation_factor
+
+    # Step 3 — Soil Organic Matter credit (negative = N already available)
+    mini_credit = calMineralisable(som_pct)
+
+    # Step 4 — Soil Nitrate credit
+    # Multiply each 12-inch depth reading by 3.5 (PPM → lbs/acre conversion)
+    SN_credit = (ppm_0_12 + ppm_12_24 + ppm_24_36) * 3.5
+
+    # Step 5 — Previous crop residue credit
+    if legume_toggle:
+        residue_credit = determinePreviousLegumes(residue_level)
+    else:
+        residue_credit = determinePreviousCereal(residue_level) if residue_toggle else 0
+
+    # Step 6 — Final N requirement
+    # mini_credit and legume residue_credit are negative numbers (they reduce N need)
+    # SN_credit is positive and subtracted separately
+    nitrogen_required = BLR + float(mini_credit) + float(residue_credit) - SN_credit
+    nitrogen_required = max(0.0, nitrogen_required)
+
+    # ══════════════════════════════════════════════════════════════
+    # ►► END OF CALCULATION ENGINE                                ◄◄
+    # ══════════════════════════════════════════════════════════════
+
+    # Downstream economics (do not modify)
+    UREA_N_FRACTION = 0.46
+    LBS_PER_TON     = 2000.0
+    bulk_urea_needed     = nitrogen_required / UREA_N_FRACTION
+    calculated_urea_cost = (bulk_urea_needed / LBS_PER_TON) * user_urea_price
+
+    # Standardized output payload — do NOT rename these keys
+    return {
+        "nitrogen_required":    round(nitrogen_required, 2),
+        "bulk_urea_needed":     round(bulk_urea_needed, 2),
+        "calculated_urea_cost": round(calculated_urea_cost, 2),
+        "gross_n_demand":       round(BLR, 2),
+        "available_n_sources":  round(SN_credit + abs(mini_credit), 2),
+        "calculation_breakdown": {
+            "base_n_requirement_blr": round(BLR, 2),
+            "precipitation_factor":   round(precipitation_factor, 2),
+            "om_credit":              round(mini_credit, 2),
+            "soil_nitrate_credit":    round(SN_credit, 2),
+            "residue_credit":         round(float(residue_credit), 2),
+        },
+        "inputs_used": {
+            "yield_potential":   yield_potential,
+            "precip_index":      precip_index,
+            "som_pct":           som_pct,
+            "soil_test_ppm":     soil_test_ppm,
+            "tillage_selection": tillage_selection,
+            "legume_toggle":     legume_toggle,
+            "residue_toggle":    residue_toggle,
+            "user_urea_price":   user_urea_price,
+            "ppm_0_12":          ppm_0_12,
+            "ppm_12_24":         ppm_12_24,
+            "ppm_24_36":         ppm_24_36,
+            "residue_level":     residue_level,
+        },
+    }

@@ -1361,6 +1361,114 @@ with st.sidebar:
         if _legume_lbs > 0:
             st.caption(f"Legume N credit: **{_legume_lbs:.0f} lbs N/ac**")
 
+        # ── NitrogenCal2 Collaborative Engine ─────────────────────────────────
+        st.markdown(
+            f"<p style='color:{_C_ACCENT};font-weight:700;font-size:0.77rem;"
+            "letter-spacing:0.07em;margin:14px 0 2px'>── NitrogenCal2 Engine ──</p>",
+            unsafe_allow_html=True,
+        )
+        st.session_state["precip_index"] = st.slider(
+            "Annual Rainfall (inches)", 12, 35,
+            int(st.session_state.get("precip_index", 20)),
+            step=1,
+            help="Total annual rainfall. Drives the Base N Requirement factor.",
+        )
+        st.session_state["soil_test_ppm"] = st.number_input(
+            "Soil Test NO\u2083 (ppm) — legacy",
+            min_value=0.0, max_value=50.0, step=0.5, format="%.1f",
+            value=float(st.session_state.get("soil_test_ppm", 20.0)),
+            help="Legacy single-depth field; depth readings below take precedence.",
+        )
+        st.markdown("**Soil Nitrate by Depth (PPM)**")
+        _sn1, _sn2, _sn3 = st.columns(3)
+        with _sn1:
+            st.session_state["ppm_0_12"] = st.number_input(
+                "0–12 inch", 0.0, 50.0,
+                float(st.session_state.get("ppm_0_12", 5.0)),
+                step=0.5, format="%.1f",
+            )
+        with _sn2:
+            st.session_state["ppm_12_24"] = st.number_input(
+                "12–24 inch", 0.0, 50.0,
+                float(st.session_state.get("ppm_12_24", 3.0)),
+                step=0.5, format="%.1f",
+            )
+        with _sn3:
+            st.session_state["ppm_24_36"] = st.number_input(
+                "24–36 inch", 0.0, 50.0,
+                float(st.session_state.get("ppm_24_36", 2.0)),
+                step=0.5, format="%.1f",
+            )
+        st.session_state["legume_toggle"] = st.toggle(
+            "Previous Crop Was Legume",
+            value=st.session_state.get("legume_toggle", False),
+        )
+        st.session_state["residue_toggle"] = st.toggle(
+            "Cereal Residue Present",
+            value=st.session_state.get("residue_toggle", True),
+        )
+        st.session_state["residue_level"] = st.select_slider(
+            "Residue Amount (tons/acre)",
+            options=[0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5],
+            value=st.session_state.get("residue_level", 2.0),
+            help="Select the crop residue level. Legume residue credits N; "
+                 "cereal residue requires extra N.",
+        )
+        engine_result = math_engine.run_collaborative_calculation_engine(
+            yield_potential   = st.session_state.get("yield_potential", 60.0),
+            precip_index      = st.session_state.get("precip_index", 20.0),
+            som_pct           = st.session_state.get("som_pct", 2.5),
+            soil_test_ppm     = st.session_state.get("soil_test_ppm", 20.0),
+            tillage_selection = st.session_state.get("tillage_selection", "Conventional"),
+            legume_toggle     = st.session_state.get("legume_toggle", False),
+            residue_toggle    = st.session_state.get("residue_toggle", True),
+            user_urea_price   = st.session_state.get("urea_price_per_ton", 400.0),
+            ppm_0_12          = st.session_state.get("ppm_0_12", 5.0),
+            ppm_12_24         = st.session_state.get("ppm_12_24", 3.0),
+            ppm_24_36         = st.session_state.get("ppm_24_36", 2.0),
+            residue_level     = float(st.session_state.get("residue_level", 2.0)),
+        )
+        _nc1, _nc2, _nc3 = st.columns(3)
+        with _nc1:
+            st.metric(
+                "N Required",
+                f"{engine_result.get('nitrogen_required', 0):.1f} lbs/ac",
+            )
+        with _nc2:
+            st.metric(
+                "Bulk Urea Needed",
+                f"{engine_result.get('bulk_urea_needed', 0):,.0f} lbs/ac",
+            )
+        with _nc3:
+            st.metric(
+                "Urea Cost",
+                f"${engine_result.get('calculated_urea_cost', 0):,.2f}/ac",
+            )
+        _nc4, _nc5 = st.columns(2)
+        with _nc4:
+            st.metric(
+                "Gross N Demand (BLR)",
+                f"{engine_result.get('gross_n_demand', 0):.1f} lbs/ac",
+            )
+        with _nc5:
+            st.metric(
+                "Available N Sources",
+                f"{engine_result.get('available_n_sources', 0):.1f} lbs/ac",
+            )
+        with st.expander("Calculation Breakdown"):
+            bd = engine_result.get("calculation_breakdown", {})
+            st.markdown(
+                f"| Step | Value |\n"
+                f"|------|-------|\n"
+                f"| Base N Requirement (BLR) | **{bd.get('base_n_requirement_blr', 0):.1f}** lbs/acre |\n"
+                f"| × Precipitation Factor   | **{bd.get('precipitation_factor', 0):.2f}** |\n"
+                f"| − Organic Matter Credit  | **{bd.get('om_credit', 0):.1f}** lbs/acre |\n"
+                f"| − Soil Nitrate Credit    | **{bd.get('soil_nitrate_credit', 0):.1f}** lbs/acre |\n"
+                f"| ± Residue Credit         | **{bd.get('residue_credit', 0):.1f}** lbs/acre |\n"
+                f"| = **N Required**         | **{engine_result.get('nitrogen_required', 0):.1f}** lbs/acre |"
+            )
+        st.caption("⚙ NitrogenCal2 Engine v2.0 — Integrated")
+
         st.markdown(
             f"<p style='color:{_C_ACCENT};font-weight:700;font-size:0.77rem;"
             f"letter-spacing:0.08em;margin-top:12px'>{t('section_eco')}</p>",
