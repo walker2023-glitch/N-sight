@@ -3,3 +3,4 @@ polars>=0.20.0
 plotly>=5.20.0
 geopy>=2.4.0
 meteostat==1.6.8
+fastexcel
