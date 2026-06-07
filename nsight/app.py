@@ -1913,6 +1913,19 @@ with tab_urea:
     )
     _selected_col = _UREA_CHART_OPTIONS[_selected_label]
 
+   # FIXED: Define the path dynamically right before reading the workbook
+    _nsight_folder = _pathlib_urea.Path(__file__).parent.absolute()
+    _root_folder = _nsight_folder.parent
+    _path_option_root = _root_folder / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
+    _path_option_local = _nsight_folder / "Urea_NW_Historical_Analysis_2015_2024.xlsx"
+
+    if _path_option_root.exists():
+        _excel_path = str(_path_option_root)
+    elif _path_option_local.exists():
+        _excel_path = str(_path_option_local)
+    else:
+        _excel_path = "../Urea_NW_Historical_Analysis_2015_2024.xlsx"
+
     try:
         # 1. Read Workbook once
         _df_raw = _pl_urea.read_excel(_excel_path, has_header=False)
