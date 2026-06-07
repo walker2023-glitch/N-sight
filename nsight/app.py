@@ -1925,26 +1925,24 @@ with tab3:
         st.error(f"Could not load urea data: {_e}")
 
     # ── Economic Return Calculator ──────────────────────────────────────────
-    # ── Economic Return Calculator ──────────────────────────────────────────
+# ── Economic Return Calculator ──────────────────────────────────────────
     st.markdown("---")
     st.subheader("Economic Return Calculator")
     _eco_c1, _eco_c2 = st.columns(2)
     with _eco_c1:
+        # FIXED: Bind the widget key directly to the safe initialization key strings
         _u_n_lbs = st.number_input(
             "N Applied (lbs/acre)", 0, 300,
-            int(st.session_state["urea_n_applied_lbs"]),
-            key="_urea_n_input",
+            key="urea_n_applied_lbs",
         )
         _u_yld = st.number_input(
             "Expected Yield (bu/acre)", 0, 200,
-            int(st.session_state["urea_yield_bu"]),
-            key="_urea_yield_input",
+            key="urea_yield_bu",
         )
     with _eco_c2:
         _u_wheat_px = st.number_input(
-            "Wheat Price ($/bu)", 0.0, 20.0,
-            st.session_state["urea_market_wheat_price"], 0.10,
-            key="_urea_wheat_px_input",
+            "Wheat Price ($/bu)", 0.0, 20.0, step=0.10,
+            key="urea_market_wheat_price",
         )
 
     _urea_result = math_engine.calc_urea_economic_return(
