@@ -464,7 +464,8 @@ def build_urea_vs_wheat_chart(urea_df, dark_mode: bool = True) -> go.Figure:
         margin=dict(l=50, r=50, t=60, b=40),
         height=450,
         showlegend=True,
-        legend=dict(orient="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        # FIXED: Changed 'orient' to the correct valid Plotly property name 'orientation'
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         
         # Left Y-Axis configuration
         yaxis=dict(
