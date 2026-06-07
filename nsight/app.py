@@ -1482,6 +1482,18 @@ with st.sidebar:
                         format="%.0f", help=t("help_fert_price"), key="fertilizer_price_ton")
 
         st.markdown(
+            f"<p style='color:{_C_ACCENT};font-weight:700;font-size:0.77rem;"
+            "letter-spacing:0.07em;margin:10px 0 2px'>── UREA MARKET ──</p>",
+            unsafe_allow_html=True,
+        )
+        # FIXED: Create the slider right here in the sidebar layout linked to the state key
+        st.slider(
+            "Urea Price (USD/ton)", 150, 900,
+            step=10,
+            key="urea_price_per_ton",
+        )
+
+        st.markdown(
             f"<p style='color:{_C_ACCENT};font-weight:700;font-size:0.8rem;"
             f"letter-spacing:0.08em;margin-top:10px'>{t('section_audit')}</p>",
             unsafe_allow_html=True,
@@ -1882,7 +1894,14 @@ with tab3:
         )
 
 
-# Chart axis selector
+# ── Tab 4: Urea Market Trend ──────────────────────────────────────────────────
+with tab_urea:
+    import polars as _pl_urea   # local alias — polars not imported at app.py top level
+    import pathlib as _pathlib_urea
+
+    st.subheader("Northwest U.S. Urea Price History (2015–2024)")
+
+    # Chart axis selector Setup
     _UREA_CHART_OPTIONS = {
         "Nominal Price (USD/mt)":   "Nominal Price\n(USD/mt)",
         "Real Price (2024 USD/mt)": "Real Price\n(2024 USD/mt)",
@@ -1924,33 +1943,33 @@ with tab3:
     except Exception as _e:
         st.error(f"Could not load urea data: {_e}")
 
-    # ── Economic Return Calculator ──────────────────────────────────────────
-# ── Economic Return Calculator ──────────────────────────────────────────
+    # ── Economic Return Calculator ──
     st.markdown("---")
     st.subheader("Economic Return Calculator")
     _eco_c1, _eco_c2 = st.columns(2)
     with _eco_c1:
-        # FIXED: Bind the widget key directly to the safe initialization key strings
-        _u_n_lbs = st.number_input(
+        st.number_input(
             "N Applied (lbs/acre)", 0, 300,
             key="urea_n_applied_lbs",
         )
-        _u_yld = st.number_input(
+        st.number_input(
             "Expected Yield (bu/acre)", 0, 200,
             key="urea_yield_bu",
         )
     with _eco_c2:
-        _u_wheat_px = st.number_input(
+        st.number_input(
             "Wheat Price ($/bu)", 0.0, 20.0, step=0.10,
             key="urea_market_wheat_price",
         )
 
+    # Calculate using verified safe default states
     _urea_result = math_engine.calc_urea_economic_return(
-        n_applied_lbs      = float(_u_n_lbs),
-        yield_bu           = float(_u_yld),
-        market_wheat_price = float(_u_wheat_px),
-        urea_price_per_ton = float(st.session_state["urea_price_per_ton"]),
+        n_applied_lbs      = float(st.session_state.get("urea_n_applied_lbs", 120.0)),
+        yield_bu           = float(st.session_state.get("urea_yield_bu", 60.0)),
+        market_wheat_price = float(st.session_state.get("urea_market_wheat_price", 6.50)),
+        urea_price_per_ton = float(st.session_state.get("urea_price_per_ton", 400.0)),
     )
+    
     _um1, _um2, _um3 = st.columns(3)
     with _um1:
         st.metric("Gross Revenue ($/acre)",        f"${_urea_result['gross_revenue']:,.2f}")
@@ -1962,7 +1981,6 @@ with tab3:
             f"${_urea_result['net_operating_margin']:,.2f}",
             delta=f"Urea needed: {_urea_result['urea_needed_lbs']:.1f} lbs/acre",
         )
-
 
 # ── Technical Audit Assumptions & Future Scope ────────────────────────────────
 st.divider()
