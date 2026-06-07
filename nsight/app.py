@@ -1589,9 +1589,13 @@ farm_nue:        float      = 0.0
 farm_validation: dict       = {"status": "warning", "message": "", "color": "#F59E0B"}
 
 try:
-    # Now grain_n_uptake is initialized and safe to call!
+    # Safely compute farm efficiency metrics
     farm_nue        = math_engine.calc_farm_nue(grain_n_uptake, n_application)
-# Segment 2: Mill
+    farm_validation = math_engine.validate_farm_nue(farm_nue)
+except ZeroDivisionError:
+    _nue_calc_error = t("err_zero_n")
+
+# Segment 2: Mill — Out of the try block and perfectly safe to execute
 mill_result = math_engine.calc_mill_output(grain_n_uptake, _extr)
 
 # Segment 3: Bakery & Retail
