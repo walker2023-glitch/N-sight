@@ -1962,19 +1962,28 @@ with tab_urea:
     st.subheader("Economic Return Calculator")
     _eco_c1, _eco_c2 = st.columns(2)
     with _eco_c1:
-        st.number_input(
-            "N Applied (lbs/acre)", 0, 300,
-            key="urea_n_applied_lbs",
+        # FIXED: Bound to explicit unique tab variables to prevent value collisions
+        _u_n_applied = st.number_input(
+            "N Applied (lbs/acre)", 0, 300, value=10,
+            key="_tab4_n_applied_lbs",
         )
-        st.number_input(
-            "Expected Yield (bu/acre)", 0, 200,
-            key="urea_yield_bu",
+        _u_yield = st.number_input(
+            "Expected Yield (bu/acre)", 0, 200, value=10,
+            key="_tab4_yield_bu",
         )
     with _eco_c2:
-        st.number_input(
-            "Wheat Price ($/bu)", 0.0, 20.0, step=0.10,
-            key="urea_market_wheat_price",
+        _u_wheat_px = st.number_input(
+            "Wheat Price ($/bu)", 0.0, 20.0, value=5.00, step=0.10,
+            key="_tab4_market_wheat_price",
         )
+
+    # FIXED: Extract directly from your sidebar widget states with zero fallback drift
+    _urea_result = math_engine.calc_urea_economic_return(
+        n_applied_lbs      = float(_u_n_applied),
+        yield_bu           = float(_u_yield),
+        market_wheat_price = float(_u_wheat_px),
+        urea_price_per_ton = float(st.session_state.get("urea_price_per_ton", 600.0)),
+    )
 
     # Calculate using verified safe default states
     _urea_result = math_engine.calc_urea_economic_return(
