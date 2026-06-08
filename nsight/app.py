@@ -1977,20 +1977,12 @@ with tab_urea:
             key="_tab4_market_wheat_price",
         )
 
-    # FIXED: Extract directly from your sidebar widget states with zero fallback drift
+# FIXED: Hardwired directly to your Tab 4 custom input keys and active sidebar slider price
     _urea_result = math_engine.calc_urea_economic_return(
-        n_applied_lbs      = float(_u_n_applied),
-        yield_bu           = float(_u_yield),
-        market_wheat_price = float(_u_wheat_px),
+        n_applied_lbs      = float(st.session_state.get("_tab4_n_applied_lbs", 15.0)),
+        yield_bu           = float(st.session_state.get("_tab4_yield_bu", 10.0)),
+        market_wheat_price = float(st.session_state.get("_tab4_market_wheat_price", 5.00)),
         urea_price_per_ton = float(st.session_state.get("urea_price_per_ton", 600.0)),
-    )
-
-    # FIXED: Hardwired directly to your custom interactive widget inputs
-    _urea_result = math_engine.calc_urea_economic_return(
-        n_applied_lbs      = float(_u_n_applied),
-        yield_bu           = float(_u_yield),
-        market_wheat_price = float(_u_wheat_px),
-        urea_price_per_ton = float(st.session_state.get("urea_price_per_ton", 400.0)),
     )
     
     _um1, _um2, _um3 = st.columns(3)
