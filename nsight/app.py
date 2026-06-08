@@ -1985,11 +1985,11 @@ with tab_urea:
         urea_price_per_ton = float(st.session_state.get("urea_price_per_ton", 600.0)),
     )
 
-    # Calculate using verified safe default states
+    # FIXED: Hardwired directly to your custom interactive widget inputs
     _urea_result = math_engine.calc_urea_economic_return(
-        n_applied_lbs      = float(st.session_state.get("urea_n_applied_lbs", 120.0)),
-        yield_bu           = float(st.session_state.get("urea_yield_bu", 60.0)),
-        market_wheat_price = float(st.session_state.get("urea_market_wheat_price", 6.50)),
+        n_applied_lbs      = float(_u_n_applied),
+        yield_bu           = float(_u_yield),
+        market_wheat_price = float(_u_wheat_px),
         urea_price_per_ton = float(st.session_state.get("urea_price_per_ton", 400.0)),
     )
     
