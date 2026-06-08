@@ -1977,14 +1977,14 @@ with tab_urea:
             key="_tab4_market_wheat_price",
         )
 
-# FIXED: Hardwired directly to your Tab 4 custom input keys and active sidebar slider price
+# LIVE FIXED: Point cleanly to your unique local widgets and the true sidebar key
     _urea_result = math_engine.calc_urea_economic_return(
         n_applied_lbs      = float(st.session_state.get("_tab4_n_applied_lbs", 15.0)),
-        yield_bu           = float(st.session_state.get("_tab4_yield_bu", 10.0)),
-        market_wheat_price = float(st.session_state.get("_tab4_market_wheat_price", 5.00)),
-        urea_price_per_ton = float(st.session_state.get("urea_price_per_ton", 600.0)),
+        yield_bu           = float(st.session_state.get("_tab4_yield_bu", 15.0)),
+        market_wheat_price = float(st.session_state.get("_tab4_market_wheat_price", 4.00)),
+        urea_price_per_ton = float(st.session_state.get("fertilizer_price_ton", 600.0)),
     )
-    
+
     _um1, _um2, _um3 = st.columns(3)
     with _um1:
         st.metric("Gross Revenue ($/acre)",        f"${_urea_result['gross_revenue']:,.2f}")
